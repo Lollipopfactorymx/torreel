@@ -1,0 +1,17 @@
+export const LANDING = '/';
+export const SIGN_UP = '/signup';
+export const SIGN_IN = '/signin';
+export const HOME = '/home';
+export const DASHBOARD = '/dashboard';
+export const ACCOUNT = '/account';
+export const MYPAYMENTS = '/mypayments';
+export const PAYMENT = '/payments';
+export const DETAIL_PAYMENTS = '/payments/:id'
+export const TENANT = '/tenants';
+export const ADD_TENANT = '/add_tenant';
+export const EDIT_TENANT = '/edit_tenant/:id';
+export const PASSWORD_FORGET = '/pw-forget';
+export const CONTRACTS = '/contracts';
+export const MY_CONTRACT = '/my-contract';
+export const CONTRACT_VIEW = '/contract/:id';
+export const UPLOAD_EXAMPLE = '/upload-example';
