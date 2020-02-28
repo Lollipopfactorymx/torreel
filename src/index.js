@@ -6,6 +6,7 @@ import "./assets/fonts/glyphicons-halflings-regular.woff";
 import "./assets/fonts/glyphicons-halflings-regular.woff2";
 import "./assets/fonts/glyphicons-halflings-regular.ttf";
 import "./assets/fonts/glyphicons-halflings-regular.svg";
+import "./assets/images/fondorayado.jpg"
 import "./assets/css/custom.css";
 import "./assets/css/menu.css";
 import "./assets/css/sidebar.css";

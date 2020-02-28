@@ -21,6 +21,7 @@ body {
 	background-size: contain;
 	background-position: top;
 	z-index: -5;
+	opacity: 0.95;
 }
 
 p, h1, h2, h3 {
@@ -150,7 +151,19 @@ input:focus, textarea:focus {
 
 /*-------------------------HOME PAGE------------------------------*/
 
-#header {
+.header-min {
+	display: flex;
+	width: 100%;
+	position: relative;
+	height: 180px;
+	z-index: -1;
+	padding: 0;
+	background-image: url(../images/header-image.jpg);
+	background-position: center;
+	background-size: cover;
+}
+
+.header {
 	display: table;
 	width: 100%;
 	position: relative;
@@ -163,7 +176,7 @@ input:focus, textarea:focus {
 	background-size: cover;
 }
 
-#header img {
+.header img {
 	height: 50%;
 	width: auto;
 	margin: 0 auto;
@@ -242,9 +255,13 @@ input:focus, textarea:focus {
 	height: 20px;
 }
 
+#user form {
+	margin: 50px;
+}
+
 /*-------------------------LOGIN PAGE------------------------------*/
 
-#login {
+.login {
 	display: table;
 	width: 100%;
 	position: relative;
@@ -256,18 +273,18 @@ input:focus, textarea:focus {
 	background-size: cover;
 }
 
-#login .form-control {
+.login .form-control {
 	width: 400px;
 	margin: 20px auto;
 }
 
-#login .img-circle {
+.login .img-circle {
 	width: 325px !important;
 	height: 325px !important;
 	margin-top: 100px;
 }
 
-#login .btn img {
+.login .btn img {
 	height: 25px;
 }
 
@@ -284,11 +301,8 @@ input:focus, textarea:focus {
 }
 
 .sidebar {
-	position: absolute;
-	top: 201px;
 	bottom: 0;
 	height: 100%;
-	z-index: 1000;
 	display: block;
 	padding: 20px;
 	background-color: #f5f5f5;
@@ -314,8 +328,8 @@ input:focus, textarea:focus {
 }
 
 .sidebar li a:hover {
-	background-color: transparent;
-	color: #f2f2f2;
+    background-color: #ffffff5e;
+    color: black;
 }
 
 .sidebar .icon-xs-screen img {
@@ -401,7 +415,7 @@ input:focus, textarea:focus {
 	height: 25px;
 }
 
-#page-content .small-icon {
+.small-icon {
 	width: auto;
 	height: 18px;
 }
@@ -889,7 +903,25 @@ input:focus, textarea:focus {
 }
 
 .galleria {
-	width: 100%;
+	width: auto;
 	height: 800px;
-	background: #000
+	background: #000;
+}
+
+.btn-link:hover, .btn-link:focus {
+	color: #86b6e0;
+	text-decoration: none;
+	background-color: transparent;
+}
+
+.imgfondoadmin {
+	position: absolute;
+}
+
+#inquilino.panel {
+	background-color: #52bac659;
+}
+
+#inquilino .panel-footer {
+	background-color: transparent;
 }
