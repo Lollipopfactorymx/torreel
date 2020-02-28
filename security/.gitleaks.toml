@@ -1,0 +1,48 @@
+# Configuracion de Gitleaks para el proyecto
+# Referencia: https://github.com/gitleaks/gitleaks
+
+title = "Gitleaks - Configuracion Torreel"
+
+[extend]
+# Usar reglas por defecto de gitleaks
+useDefault = true
+
+# Reglas adicionales especificas para el proyecto
+[[rules]]
+id = "firebase-api-key"
+description = "Firebase API Key detectada"
+regex = '''AIza[0-9A-Za-z_-]{35}'''
+tags = ["firebase", "api-key"]
+
+[[rules]]
+id = "cloudinary-secret"
+description = "Cloudinary API Secret detectada"
+regex = '''cloudinary.*secret.*[=:]\s*["']?[A-Za-z0-9_-]{20,}["']?'''
+tags = ["cloudinary", "secret"]
+
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI API Key detectada"
+regex = '''sk-[A-Za-z0-9]{20,}'''
+tags = ["openai", "api-key"]
+
+[[rules]]
+id = "telegram-bot-token"
+description = "Telegram Bot Token detectado"
+regex = '''[0-9]{9,10}:[A-Za-z0-9_-]{35}'''
+tags = ["telegram", "token"]
+
+# Rutas a ignorar
+[allowlist]
+paths = [
+    '''node_modules''',
+    '''\.env\.example''',
+    '''package-lock\.json''',
+    '''functions/lib''',
+    '''build''',
+    '''dist''',
+    '''\.git'''
+]
+
+# No ignorar archivos especificos donde pueden haber secretos
+# Esto asegura que se escaneen los archivos de configuracion
