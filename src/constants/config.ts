@@ -1,11 +1,11 @@
 const config = {
-    apiKey: "AIzaSyDBR3Escnf5Yhtk_UxD1aFSQkhhzNJ_yiw",
-    authDomain: "torre-el.firebaseapp.com",
-    projectId: "torre-el",
-    storageBucket: "torre-el.firebasestorage.app",
-    messagingSenderId: "869748362024",
-    appId: "1:869748362024:web:94a3c240e6468818adde1d",
-    measurementId: "G-112N6T5PR4"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 export default config;
