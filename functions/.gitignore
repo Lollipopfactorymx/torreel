@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Compiled output
+lib/
+
+# Local emulator config
+.runtimeconfig.json
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/

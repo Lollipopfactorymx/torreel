@@ -134,7 +134,7 @@ input:focus, textarea:focus {
 }
 
 .form-control {
-	color: #fff !important;
+	color: #000 !important;
 }
 
 .btn {
