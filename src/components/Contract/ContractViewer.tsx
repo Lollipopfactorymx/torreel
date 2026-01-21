@@ -8,9 +8,11 @@ import { AuthUserContext } from '../Session';
 import * as ROUTES from '../../constants/routes';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import emailjs from '@emailjs/browser';
 
 import vectoresFondoImg from '../../assets/images/vectores-fondo.png';
 import landlordSignatureImg from '../../assets/images/landlord-signature.png';
+import CloudinaryService from '../../services/CloudinaryService';
 
 interface ContractViewerProps {
     firebase: any;
@@ -28,9 +30,11 @@ const ContractViewer: React.FC<ContractViewerProps> = ({ firebase, history, matc
     const [emailAddress, setEmailAddress] = useState('');
     const [sendingEmail, setSendingEmail] = useState(false);
     const [emailSent, setEmailSent] = useState(false);
+    const [uploadingPdf, setUploadingPdf] = useState(false);
     const sigCanvas = useRef<SignatureCanvas>(null);
     const guarantorSigCanvas = useRef<SignatureCanvas>(null);
     const contractRef = useRef<HTMLDivElement>(null);
+    const cloudinaryService = new CloudinaryService();
 
     React.useEffect(() => {
         const contractId = match.params.id;
@@ -80,8 +84,11 @@ const ContractViewer: React.FC<ContractViewerProps> = ({ firebase, history, matc
                 status: 'signed'
             });
 
-            alert('Contrato firmado exitosamente');
-            history.push(ROUTES.ACCOUNT);
+            // Reload contract to update view immediately
+            const updatedDoc = await firebase.db.collection('contracts').doc(contract.id).get();
+            setContract({ id: updatedDoc.id, ...updatedDoc.data() });
+
+            alert('Contrato firmado exitosamente. Ahora puedes guardar el PDF oficial.');
         } catch (error) {
             console.error('Error signing contract:', error);
             alert('Error al firmar el contrato');
@@ -106,53 +113,104 @@ const ContractViewer: React.FC<ContractViewerProps> = ({ firebase, history, matc
         return date.toISOString();
     };
 
-    const generatePDF = async () => {
-        if (!contractRef.current) return;
-
-        setGeneratingPdf(true);
+    const generatePdfBlob = async (): Promise<Blob | null> => {
+        if (!contractRef.current) return null;
 
         try {
             const element = contractRef.current;
+            // Reducimos scale de 2 a 1.5 para bajar peso (sigue siendo buena calidad para leer)
             const canvas = await html2canvas(element, {
-                scale: 2,
+                scale: 1.5,
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff'
             });
 
-            const imgData = canvas.toDataURL('image/png');
+            // Usamos JPEG en lugar de PNG y calidad 0.6 (60%) reduciendo drásticamente el peso
+            const imgData = canvas.toDataURL('image/jpeg', 0.6);
+
             const pdf = new jsPDF({
                 orientation: 'portrait',
                 unit: 'mm',
-                format: 'letter'
+                format: 'letter',
+                compress: true // Activamos compresión interna del PDF
             });
 
-            const imgWidth = 215.9; // Letter width in mm
-            const pageHeight = 279.4; // Letter height in mm
+            const imgWidth = 215.9;
+            const pageHeight = 279.4;
             const imgHeight = (canvas.height * imgWidth) / canvas.width;
             let heightLeft = imgHeight;
             let position = 0;
 
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            // Cambiamos el tipo de imagen a 'JPEG'
+            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, '', 'FAST');
             heightLeft -= pageHeight;
 
             while (heightLeft >= 0) {
                 position = heightLeft - imgHeight;
                 pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, '', 'FAST');
                 heightLeft -= pageHeight;
             }
 
-            const profile = contract?.profile || {};
-            const fileName = `Contrato_${profile.fullname || 'Arrendamiento'}_${new Date().toISOString().split('T')[0]}.pdf`;
-            pdf.save(fileName);
+            return pdf.output('blob');
         } catch (error) {
-            console.error('Error generating PDF:', error);
-            alert('Error al generar el PDF. Por favor intenta de nuevo.');
+            console.error('Error constructing PDF blob:', error);
+            return null;
+        }
+    };
+
+    // Helper para asegurar que tenemos una URL de PDF (ya sea existente o nueva)
+    const ensurePdfUrl = async (): Promise<string | null> => {
+        if (contract.pdfUrl) return contract.pdfUrl;
+
+        setUploadingPdf(true);
+        try {
+            const pdfBlob = await generatePdfBlob();
+            if (!pdfBlob) throw new Error('Failed to generate PDF');
+
+            const profile = contract.profile || {};
+            const fileName = `Contrato_${profile.fullname || 'Arrendamiento'}_${contract.id}.pdf`;
+            const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+            const response = await cloudinaryService.uploadDocument(file);
+            const newUrl = response.secure_url;
+
+            // Actualizar en Firebase
+            await firebase.db.collection('contracts').doc(contract.id).update({
+                pdfUrl: newUrl
+            });
+
+            // Actualizar estado local
+            setContract((prev: any) => ({ ...prev, pdfUrl: newUrl }));
+
+            return newUrl;
+        } catch (error) {
+            console.error('Error ensuring PDF URL:', error);
+            alert('No se pudo generar o subir el PDF. Intenta de nuevo.');
+            return null;
+        } finally {
+            setUploadingPdf(false);
+        }
+    };
+
+    const handleDownload = async () => {
+        setGeneratingPdf(true);
+        try {
+            const url = await ensurePdfUrl();
+            if (url) {
+                window.open(url, '_blank');
+            }
         } finally {
             setGeneratingPdf(false);
         }
     };
+
+    const handlePrepareEmail = async () => {
+        setShowEmailModal(true);
+    };
+
+
 
     const handleSendEmail = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -161,15 +219,33 @@ const ContractViewer: React.FC<ContractViewerProps> = ({ firebase, history, matc
         setSendingEmail(true);
 
         try {
-            // Store the email request in Firestore for backend processing
-            await firebase.db.collection('emailRequests').add({
-                contractId: contract.id,
-                tenantId: contract.tenantId,
-                recipientEmail: emailAddress,
-                type: 'contract',
-                status: 'pending',
-                createdAt: new Date().toISOString()
-            });
+            // Aseguramos que el PDF exista en la nube antes de enviar el correo
+            const url = await ensurePdfUrl();
+            if (!url) {
+                setSendingEmail(false);
+                alert('No se pudo generar el PDF para enviar.');
+                return;
+            }
+
+            // Configuración de EmailJS
+            // Service ID: PALX
+            // Template ID: template_qzt1jbq
+            // Public Key: ufwam3jbHzFn9WANh
+            const templateParams = {
+                to_email: emailAddress,
+                pdf_link: url,
+                tenant_name: contract.profile?.fullname || 'Inquilino',
+                department: contract.data?.department || '',
+                contract_duration: contract.data?.duration || '12 meses',
+                message: `Adjunto encontrarás el enlace a tu contrato de arrendamiento para el departamento ${contract.data?.department || ''}.`
+            };
+
+            await emailjs.send(
+                'PALX',
+                'template_qzt1jbq',
+                templateParams,
+                'ufwam3jbHzFn9WANh'
+            );
 
             setEmailSent(true);
             setTimeout(() => {
@@ -177,9 +253,23 @@ const ContractViewer: React.FC<ContractViewerProps> = ({ firebase, history, matc
                 setEmailSent(false);
                 setEmailAddress('');
             }, 2000);
+
+            // Opcional: Guardar registro en Firebase solo como historial (sin trigger)
+            try {
+                await firebase.db.collection('emailLogs').add({
+                    contractId: contract.id,
+                    recipientEmail: emailAddress,
+                    sentAt: new Date().toISOString(),
+                    provider: 'emailjs',
+                    status: 'success'
+                });
+            } catch (logError) {
+                console.warn('No se pudo guardar el log del email:', logError);
+            }
+
         } catch (error) {
-            console.error('Error sending email request:', error);
-            alert('Error al enviar la solicitud. Por favor intenta de nuevo.');
+            console.error('Error sending email with EmailJS:', error);
+            alert('Error al enviar el correo. Por favor verifica que la dirección sea correcta o intenta más tarde.');
         } finally {
             setSendingEmail(false);
         }
@@ -349,13 +439,74 @@ const ContractViewer: React.FC<ContractViewerProps> = ({ firebase, history, matc
 
                     {/* Cierre */}
                     <p style={{ marginTop: '30px' }}>
-                        Bien enteradas las partes, habiendo leído y comprendido el contenido y alcance del presente contrato, lo firman de conformidad por duplicado, quedando asentado el día <strong>{getDay(new Date().toISOString())}</strong> de <strong>{getMonth(new Date().toISOString())}</strong> del año <strong>{getYear(new Date().toISOString())}</strong>, en el Municipio de Zacatelco, Tlaxcala.
+                        Bien enteradas las partes, habiendo leído y comprendido el contenido y alcance del presente contrato, lo firman de conformidad por duplicado, quedando asentado el día <strong>{getDay(contract.signedAt || new Date().toISOString())}</strong> de <strong>{getMonth(contract.signedAt || new Date().toISOString())}</strong> del año <strong>{getYear(contract.signedAt || new Date().toISOString())}</strong>, en el Municipio de Zacatelco, Tlaxcala.
                     </p>
+
+                    {/* FIRMAS INTEGRADAS EN EL CONTRATO (PARA PDF) */}
+                    {contract.status === 'signed' && (
+                        <div style={{ marginTop: '50px', paddingTop: '20px' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none' }}>
+                                <tbody>
+                                    <tr>
+                                        {/* Firma Arrendador */}
+                                        <td style={{ width: '33%', textAlign: 'center', verticalAlign: 'bottom', padding: '10px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                <img
+                                                    src={landlordSignatureImg}
+                                                    alt="Firma Arrendador"
+                                                    style={{ maxWidth: '120px', maxHeight: '80px', marginBottom: '5px' }}
+                                                />
+                                                <div style={{ borderTop: '1px solid #000', width: '90%', paddingTop: '5px', fontSize: '10px' }}>
+                                                    <strong>JOSE LUIS PALILLERO HUERTA</strong>
+                                                    <br />EL ARRENDADOR
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        {/* Firma Arrendatario */}
+                                        <td style={{ width: '33%', textAlign: 'center', verticalAlign: 'bottom', padding: '10px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                {contract.tenantSignature && (
+                                                    <img
+                                                        src={contract.tenantSignature}
+                                                        alt="Firma Arrendatario"
+                                                        style={{ maxWidth: '120px', maxHeight: '80px', marginBottom: '5px' }}
+                                                    />
+                                                )}
+                                                <div style={{ borderTop: '1px solid #000', width: '90%', paddingTop: '5px', fontSize: '10px' }}>
+                                                    <strong>{profile.fullname?.toUpperCase() || 'LA ARRENDATARIA'}</strong>
+                                                    <br />LA ARRENDATARIA
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        {/* Firma Aval */}
+                                        <td style={{ width: '33%', textAlign: 'center', verticalAlign: 'bottom', padding: '10px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                {contract.guarantorSignature && (
+                                                    <img
+                                                        src={contract.guarantorSignature}
+                                                        alt="Firma Aval"
+                                                        style={{ maxWidth: '120px', maxHeight: '80px', marginBottom: '5px' }}
+                                                    />
+                                                )}
+                                                <div style={{ borderTop: '1px solid #000', width: '90%', paddingTop: '5px', fontSize: '10px' }}>
+                                                    <strong>{data.guarantorName?.toUpperCase() || 'EL FIADOR'}</strong>
+                                                    <br />EL FIADOR
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
 
-                {/* Sección de firmas */}
+                {/* Sección de captura de firmas (Solo visible si NO está firmado) */}
                 {contract.status !== 'signed' && (
                     <div style={{ marginTop: '40px', backgroundColor: '#f9f9f9', padding: '30px', border: '1px solid #ddd' }}>
+                        {/* ... (código existente de captura de firmas) ... */}
                         {/* Aviso de edición */}
                         <div className="alert alert-warning text-center">
                             <i className="fa fa-exclamation-triangle"></i> <strong>Revisa la información antes de firmar.</strong>
@@ -423,7 +574,7 @@ const ContractViewer: React.FC<ContractViewerProps> = ({ firebase, history, matc
                     </div>
                 )}
 
-                {/* Contrato ya firmado */}
+                {/* Contrato ya firmado - Botones de acción */}
                 {contract.status === 'signed' && (
                     <div style={{ marginTop: '40px' }}>
                         <div className="alert alert-success text-center">
@@ -436,70 +587,40 @@ const ContractViewer: React.FC<ContractViewerProps> = ({ firebase, history, matc
                             })}</p>
                         </div>
 
-                        {/* Sección de firmas */}
-                        <div style={{ backgroundColor: '#f9f9f9', padding: '30px', border: '1px solid #ddd', marginTop: '20px' }}>
-                            <h4 className="text-center" style={{ marginBottom: '30px' }}>Firmas del Contrato</h4>
-
-                            <div className="row">
-                                {/* Firma del Arrendador */}
-                                <div className="col-md-4 text-center">
-                                    <h5>EL ARRENDADOR</h5>
-                                    <div style={{ border: '1px solid #ddd', backgroundColor: 'white', padding: '10px', marginTop: '10px', minHeight: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <img src={landlordSignatureImg} alt="Firma del arrendador"
-                                            style={{ maxWidth: '100%', maxHeight: '100px' }} />
-                                    </div>
-                                    <p style={{ marginTop: '10px', fontWeight: 'bold', borderTop: '2px solid #333', paddingTop: '10px' }}>
-                                        JOSE LUIS PALILLERO HUERTA
-                                    </p>
-                                </div>
-
-                                {/* Firma del Arrendatario */}
-                                <div className="col-md-4 text-center">
-                                    <h5>LA ARRENDATARIA</h5>
-                                    <div style={{ border: '1px solid #ddd', backgroundColor: 'white', padding: '10px', marginTop: '10px', minHeight: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <img src={contract.tenantSignature} alt="Firma del arrendatario"
-                                            style={{ maxWidth: '100%', maxHeight: '100px' }} />
-                                    </div>
-                                    <p style={{ marginTop: '10px', fontWeight: 'bold', borderTop: '2px solid #333', paddingTop: '10px' }}>
-                                        {profile.fullname || 'LA ARRENDATARIA'}
-                                    </p>
-                                </div>
-
-                                {/* Firma del Aval */}
-                                <div className="col-md-4 text-center">
-                                    <h5>EL FIADOR</h5>
-                                    <div style={{ border: '1px solid #ddd', backgroundColor: 'white', padding: '10px', marginTop: '10px', minHeight: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <img src={contract.guarantorSignature} alt="Firma del aval"
-                                            style={{ maxWidth: '100%', maxHeight: '100px' }} />
-                                    </div>
-                                    <p style={{ marginTop: '10px', fontWeight: 'bold', borderTop: '2px solid #333', paddingTop: '10px' }}>
-                                        {data.guarantorName || 'EL FIADOR'}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
                         {/* Opciones de descarga y envío */}
                         <div className="text-center" style={{ marginTop: '30px', padding: '20px', backgroundColor: '#e8f5e9', borderRadius: '8px' }}>
-                            <h5 style={{ marginBottom: '20px' }}>Opciones de Contrato</h5>
-                            <button
-                                onClick={generatePDF}
-                                className="btn btn-success btn-lg"
-                                disabled={generatingPdf}
-                                style={{ marginRight: '10px' }}
-                            >
-                                <i className="fa fa-download"></i> {generatingPdf ? 'Generando PDF...' : 'Descargar PDF'}
-                            </button>
-                            <button
-                                onClick={() => setShowEmailModal(true)}
-                                className="btn btn-primary btn-lg"
-                                style={{ marginRight: '10px' }}
-                            >
-                                <i className="fa fa-envelope"></i> Enviar por Correo
-                            </button>
-                            <button onClick={() => window.print()} className="btn btn-default btn-lg">
-                                <i className="fa fa-print"></i> Imprimir
-                            </button>
+                            <h5 style={{ marginBottom: '20px' }}>Opciones de Contrato Oficial</h5>
+
+                            <div className="btn-group">
+                                <button
+                                    onClick={handleDownload}
+                                    className="btn btn-success btn-lg"
+                                    disabled={generatingPdf || uploadingPdf}
+                                    style={{ marginRight: '10px' }}
+                                >
+                                    <i className={`fa ${generatingPdf || uploadingPdf ? 'fa-spinner fa-spin' : 'fa-download'}`}></i>
+                                    {generatingPdf || uploadingPdf ? ' Procesando...' : ' Descargar PDF'}
+                                </button>
+
+                                <button
+                                    onClick={handlePrepareEmail}
+                                    className="btn btn-primary btn-lg"
+                                    style={{ marginRight: '10px' }}
+                                    disabled={sendingEmail}
+                                >
+                                    <i className="fa fa-envelope"></i> Enviar por Correo
+                                </button>
+
+                                <button onClick={() => window.print()} className="btn btn-default btn-lg">
+                                    <i className="fa fa-print"></i> Imprimir
+                                </button>
+                            </div>
+
+                            {contract.pdfUrl && (
+                                <p className="text-muted" style={{ marginTop: '10px', fontSize: '10px' }}>
+                                    <i className="fa fa-cloud"></i> Documento sincronizado en la nube.
+                                </p>
+                            )}
                         </div>
                     </div>
                 )}

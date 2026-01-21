@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "bootstrap": "^4.4.1",
     "cloudinary": "^2.9.0",
     "firebase": "^8.10.1",

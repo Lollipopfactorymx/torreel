@@ -1,34 +1,19 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import * as nodemailer from 'nodemailer';
+import axios from 'axios';
 
 admin.initializeApp();
 
 const db = admin.firestore();
 
-// Configuración del transportador de email
-// Las credenciales se configuran en el archivo .env
-const getTransporter = () => {
-    const gmailEmail = process.env.GMAIL_EMAIL;
-    const gmailPassword = process.env.GMAIL_PASSWORD;
-
-    if (!gmailEmail || !gmailPassword) {
-        throw new Error('Gmail credentials not configured. Create a .env file with GMAIL_EMAIL and GMAIL_PASSWORD');
-    }
-
-    return nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: gmailEmail,
-            pass: gmailPassword
-        }
-    });
+// Obtener API Key de Brevo desde variables de entorno
+// Asegúrate de configurar: firebase functions:config:set brevo.key="TU_API_KEY"
+// O usar un archivo .env si usas dotenv
+const getBrevoApiKey = () => {
+    return process.env.BREVO_API_KEY || functions.config().brevo?.key;
 };
 
-// Función para formatear moneda
-const formatCurrency = (amount: string | number): string => {
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(amount) || 0);
-};
+
 
 // Función para formatear fecha
 const formatDate = (dateStr: string): string => {
@@ -41,7 +26,7 @@ const formatDate = (dateStr: string): string => {
     });
 };
 
-// Generar HTML del contrato para el email
+// Generar HTML del contrato para email (Solo usado si no hay PDF URL)
 const generateContractHTML = (contract: any): string => {
     const data = contract.data || {};
     const profile = contract.profile || {};
@@ -55,141 +40,33 @@ const generateContractHTML = (contract: any): string => {
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
             .header { text-align: center; border-bottom: 3px solid #b8860b; padding-bottom: 20px; margin-bottom: 30px; }
             .header h1 { color: #333; letter-spacing: 2px; }
-            .section { margin-bottom: 25px; }
-            .section h3 { color: #b8860b; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-            .info-row { display: flex; margin-bottom: 10px; }
-            .info-label { font-weight: bold; min-width: 200px; }
-            .signatures { display: flex; justify-content: space-between; margin-top: 40px; }
-            .signature-box { text-align: center; width: 30%; }
-            .signature-line { border-top: 2px solid #333; margin-top: 80px; padding-top: 10px; }
-            .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; font-size: 12px; }
-            .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; font-weight: bold; }
-            .status-signed { background-color: #d4edda; color: #155724; }
-            .status-pending { background-color: #fff3cd; color: #856404; }
         </style>
     </head>
     <body>
         <div class="header">
             <h1>CONTRATO DE ARRENDAMIENTO</h1>
-            <p>Torre El - Departamentos en Renta</p>
-            <span class="status-badge ${contract.status === 'signed' ? 'status-signed' : 'status-pending'}">
-                ${contract.status === 'signed' ? '✓ FIRMADO' : '⏳ PENDIENTE'}
-            </span>
+            <p>Torre El - Depto ${data.department || '---'}</p>
         </div>
-
-        <div class="section">
-            <h3>Datos del Arrendador</h3>
-            <div class="info-row">
-                <span class="info-label">Nombre:</span>
-                <span>JOSE LUIS PALILLERO HUERTA</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Dirección:</span>
-                <span>Calle Ciencias de la Salud número 16, Sección Tercera Guardia, Zacatelco, Tlaxcala</span>
-            </div>
-        </div>
-
-        <div class="section">
-            <h3>Datos del Arrendatario</h3>
-            <div class="info-row">
-                <span class="info-label">Nombre:</span>
-                <span>${profile.fullname || '---'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Email:</span>
-                <span>${profile.email || '---'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">INE:</span>
-                <span>${data.tenantId || '---'}</span>
-            </div>
-        </div>
-
-        <div class="section">
-            <h3>Datos del Inmueble</h3>
-            <div class="info-row">
-                <span class="info-label">Departamento:</span>
-                <span>${data.department || '---'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Renta Mensual:</span>
-                <span>${formatCurrency(data.monthlyRent)}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Depósito:</span>
-                <span>${formatCurrency(data.deposit)}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Fecha de Inicio:</span>
-                <span>${formatDate(data.startDate)}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Duración:</span>
-                <span>${data.duration || '12 meses'}</span>
-            </div>
-        </div>
-
-        <div class="section">
-            <h3>Datos del Fiador</h3>
-            <div class="info-row">
-                <span class="info-label">Nombre:</span>
-                <span>${data.guarantorName || '---'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Dirección:</span>
-                <span>${data.guarantorAddress || '---'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Teléfono:</span>
-                <span>${data.guarantorPhone || '---'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">INE:</span>
-                <span>${data.guarantorId || '---'}</span>
-            </div>
-        </div>
-
-        ${contract.status === 'signed' ? `
-        <div class="section">
-            <h3>Información de Firma</h3>
-            <div class="info-row">
-                <span class="info-label">Fecha de Firma:</span>
-                <span>${formatDate(contract.signedAt)}</span>
-            </div>
-        </div>
-
-        <div class="signatures">
-            <div class="signature-box">
-                <div class="signature-line">EL ARRENDADOR</div>
-                <p>Jose Luis Palillero Huerta</p>
-            </div>
-            <div class="signature-box">
-                <div class="signature-line">LA ARRENDATARIA</div>
-                <p>${profile.fullname || '---'}</p>
-            </div>
-            <div class="signature-box">
-                <div class="signature-line">EL FIADOR</div>
-                <p>${data.guarantorName || '---'}</p>
-            </div>
-        </div>
-        ` : ''}
-
-        <div class="footer">
-            <p>Este documento fue generado automáticamente por el sistema Torre El.</p>
-            <p>Para ver el contrato completo con todas las cláusulas y firmas digitales, ingresa a tu cuenta en la aplicación.</p>
-            <p>Fecha de generación: ${formatDate(new Date().toISOString())}</p>
-        </div>
+        <p>Arrendatario: ${profile.fullname || '---'}</p>
+        <p>Fecha Inicio: ${formatDate(data.startDate)}</p>
+        <p>Este es un resumen. El documento oficial debe ser generado en PDF.</p>
     </body>
     </html>
     `;
 };
 
-// Cloud Function que escucha nuevos documentos en emailRequests
 export const sendContractEmail = functions.firestore
     .document('emailRequests/{requestId}')
     .onCreate(async (snap, context) => {
         const requestData = snap.data();
         const requestId = context.params.requestId;
+        const apiKey = getBrevoApiKey();
+
+        if (!apiKey) {
+            console.error('Brevo API Key not configured');
+            await snap.ref.update({ status: 'error', error: 'Server configuration error (Missing API Key)' });
+            return { success: false, error: 'Missing API Key' };
+        }
 
         console.log(`Processing email request: ${requestId}`);
 
@@ -202,48 +79,63 @@ export const sendContractEmail = functions.firestore
             }
 
             const contract = { id: contractDoc.id, ...contractDoc.data() } as any;
+            const pdfUrl = requestData.pdfUrl || contract.pdfUrl;
 
-            // Generar HTML del contrato
-            const contractHTML = generateContractHTML(contract);
+            // Preparar adjuntos
+            const attachment = [];
 
-            // Configurar el transportador
-            const transporter = getTransporter();
+            if (pdfUrl) {
+                // Opción 1: Enviar URL (Brevo lo descarga y adjunta)
+                attachment.push({
+                    url: pdfUrl,
+                    name: `Contrato_TorreEl_${contract.data?.department || 'Depto'}.pdf`
+                });
+            } else {
+                // Fallback: Generar HTML simple y enviar como base64 (simplificado aquí)
+                // Para simplificar, si no hay PDF, enviamos el HTML
+                const htmlContent = generateContractHTML(contract);
+                const buffer = Buffer.from(htmlContent);
+                attachment.push({
+                    content: buffer.toString('base64'),
+                    name: `Resumen_Contrato.html`
+                });
+            }
 
-            // Configurar el email
-            const mailOptions = {
-                from: `"Torre El - Contratos" <${process.env.GMAIL_EMAIL}>`,
-                to: requestData.recipientEmail,
+            // Configurar payload para Brevo
+            const emailData = {
+                sender: { name: "Torre El Contratos", email: "no-reply@torre-el.com" }, // Cambia esto por un remitente verificado en Brevo
+                to: [{ email: requestData.recipientEmail }],
                 subject: `Contrato de Arrendamiento - Depto ${contract.data?.department || ''}`,
-                html: `
-                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                        <h2 style="color: #b8860b;">Torre El - Contrato de Arrendamiento</h2>
+                htmlContent: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                        <h2 style="color: #b8860b;">Torre El - Tu Contrato</h2>
                         <p>Hola,</p>
-                        <p>Adjunto encontrarás el resumen de tu contrato de arrendamiento.</p>
-                        <p>Para ver el contrato completo con todas las cláusulas legales y las firmas digitales,
-                        ingresa a tu cuenta en la aplicación de Torre El.</p>
+                        <p>Adjunto encontrarás tu contrato de arrendamiento oficial.</p>
+                        ${pdfUrl ? '<p><strong>Hemos adjuntado el PDF oficial firmado.</strong></p>' : '<p>Te enviamos un resumen en HTML.</p>'}
+                        <p>Para cualquier duda, contacta a la administración.</p>
                         <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-                        <p style="color: #666; font-size: 12px;">
-                            Este es un correo automático, por favor no responder a esta dirección.
-                        </p>
+                        <p style="color: #999; font-size: 12px;">Departamento: ${contract.data?.department || 'N/A'}</p>
                     </div>
                 `,
-                attachments: [
-                    {
-                        filename: `Contrato_${contract.profile?.fullname || 'Arrendamiento'}.html`,
-                        content: contractHTML,
-                        contentType: 'text/html'
-                    }
-                ]
+                attachment: attachment
             };
 
-            // Enviar el email
-            await transporter.sendMail(mailOptions);
+            // Enviar petición a Brevo
+            const response = await axios.post('https://api.brevo.com/v3/smtp/email', emailData, {
+                headers: {
+                    'api-key': apiKey,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            });
 
-            console.log(`Email sent successfully to: ${requestData.recipientEmail}`);
+            console.log(`Email sent via Brevo. MessageId: ${response.data.messageId}`);
 
             // Actualizar el estado de la solicitud
             await snap.ref.update({
                 status: 'sent',
+                provider: 'brevo',
+                messageId: response.data.messageId,
                 sentAt: admin.firestore.FieldValue.serverTimestamp(),
                 error: null
             });
@@ -251,12 +143,12 @@ export const sendContractEmail = functions.firestore
             return { success: true };
 
         } catch (error: any) {
-            console.error('Error sending email:', error);
+            console.error('Error sending email with Brevo:', error.response?.data || error.message);
 
             // Actualizar el estado con el error
             await snap.ref.update({
                 status: 'error',
-                error: error.message,
+                error: JSON.stringify(error.response?.data || error.message),
                 errorAt: admin.firestore.FieldValue.serverTimestamp()
             });
 

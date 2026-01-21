@@ -110,7 +110,7 @@ class CloudinaryService {
 
         try {
             const response = await fetch(
-                `https://api.cloudinary.com/v1_1/${this.cloudName}/raw/upload`,
+                `https://api.cloudinary.com/v1_1/${this.cloudName}/auto/upload`,
                 {
                     method: 'POST',
                     body: formData,
