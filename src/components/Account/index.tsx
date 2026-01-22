@@ -4,6 +4,7 @@ import { withFirebase } from '../Firebase';
 import * as ROUTES from '../../constants/routes';
 import SideBarAdmin from '../Admin/SidebarAdmin';
 import { AuthUserContext, withAuthorization } from '../Session';
+import TelegramConnect from './TelegramConnect';
 
 import vectoresFondoImg from '../../assets/images/vectores-fondo.png';
 import userDefaultImg from '../../assets/images/user-default.jpg';
@@ -65,6 +66,18 @@ class Account extends React.Component<any, any> {
 																</div>
 															</div>
 														</div>
+
+														{/* Telegram Connection */}
+														<div className='row'>
+															<div className='col-xs-12'>
+																<TelegramConnect
+																	firebase={this.props.firebase}
+																	userId={authUser.uid}
+																	currentChatId={authUser.telegramChatId}
+																/>
+															</div>
+														</div>
+
 														<div className='row'>
 															<div className='col-xs-12 col-sm-12'>
 																<h3>Historico de Pagos</h3>

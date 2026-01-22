@@ -13,6 +13,10 @@ import emailjs from '@emailjs/browser';
 import vectoresFondoImg from '../../assets/images/vectores-fondo.png';
 import landlordSignatureImg from '../../assets/images/landlord-signature.png';
 import CloudinaryService from '../../services/CloudinaryService';
+import DocumentChecklist from './DocumentChecklist';
+import DocumentVerification from './DocumentVerification';
+import PaymentManager from './PaymentManager';
+import * as ROLES from '../../constants/roles';
 
 interface ContractViewerProps {
     firebase: any;
@@ -622,6 +626,59 @@ const ContractViewer: React.FC<ContractViewerProps> = ({ firebase, history, matc
                                 </p>
                             )}
                         </div>
+
+                        {/* Documentación - Vista según rol */}
+                        {authUser?.roles?.[ROLES.ADMIN] ? (
+                            // Vista de administrador: Verificación de documentos
+                            <DocumentVerification
+                                firebase={firebase}
+                                contractId={contract.id}
+                                tenantId={contract.tenantId}
+                                documents={contract.documentation?.documents || []}
+                                emergencyContacts={contract.documentation?.emergencyContacts || []}
+                                onUpdate={() => {
+                                    // Recargar contrato para actualizar estado
+                                    firebase.db.collection('contracts').doc(contract.id).get()
+                                        .then((doc: any) => {
+                                            if (doc.exists) {
+                                                setContract({ id: doc.id, ...doc.data() });
+                                            }
+                                        });
+                                }}
+                            />
+                        ) : (
+                            // Vista de inquilino: Subir documentos
+                            <DocumentChecklist
+                                firebase={firebase}
+                                contractId={contract.id}
+                                tenantId={contract.tenantId}
+                                tenantName={profile.fullname || 'Inquilino'}
+                                onComplete={() => {
+                                    // Recargar contrato para actualizar estado
+                                    firebase.db.collection('contracts').doc(contract.id).get()
+                                        .then((doc: any) => {
+                                            if (doc.exists) {
+                                                setContract({ id: doc.id, ...doc.data() });
+                                            }
+                                        });
+                                }}
+                            />
+                        )}
+
+                        {/* Registro de Pagos */}
+                        <PaymentManager
+                            firebase={firebase}
+                            contractId={contract.id}
+                            tenantId={contract.tenantId}
+                            monthlyRent={parseFloat(data.monthlyRent) || 0}
+                            startDate={data.startDate}
+                            duration={data.duration}
+                            tenantName={profile.fullname || 'Inquilino'}
+                            tenantEmail={profile.email || ''}
+                            tenantPhone={profile.phone || ''}
+                            telegramChatId={profile.telegramChatId || ''}
+                            department={data.department || ''}
+                        />
                     </div>
                 )}
 

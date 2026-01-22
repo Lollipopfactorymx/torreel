@@ -7,6 +7,7 @@ import { AuthUserContext } from '../Session';
 import { withFirebase } from '../Firebase';
 import * as ROUTES from '../../constants/routes';
 import * as ROLES from '../../constants/roles';
+import { TenantDocumentation, DOCUMENT_CHECKLIST } from '../../types';
 
 import vectoresFondoImg from '../../assets/images/vectores-fondo.png';
 import contractIcon from '../../assets/images/contract-icon.png';
@@ -29,6 +30,7 @@ const Dashboard: React.FC<DashboardProps> = ({ firebase, history }) => {
     });
     const [userContract, setUserContract] = useState<any>(null);
     const [pendingPayments, setPendingPayments] = useState(0);
+    const [documentation, setDocumentation] = useState<TenantDocumentation | null>(null);
     const [loading, setLoading] = useState(true);
 
     const isAdmin = authUser?.roles?.[ROLES.ADMIN];
@@ -61,17 +63,33 @@ const Dashboard: React.FC<DashboardProps> = ({ firebase, history }) => {
                     });
                 } else {
                     // Cargar datos para inquilino
-                    const [contractSnap, paymentsSnap] = await Promise.all([
+                    const [contractSnap, paymentsSnap, docsSnap] = await Promise.all([
                         firebase.db.collection('contracts').where('tenantId', '==', authUser.uid).get(),
                         firebase.db.collection('payments')
                             .where('tenantId', '==', authUser.uid)
                             .where('status', '==', 'pending')
+                            .get(),
+                        firebase.db.collection('tenantDocumentation')
+                            .where('tenantId', '==', authUser.uid)
+                            .limit(1)
                             .get()
                     ]);
 
                     if (!contractSnap.empty) {
-                        setUserContract({ id: contractSnap.docs[0].id, ...contractSnap.docs[0].data() });
+                        const contractData = { id: contractSnap.docs[0].id, ...contractSnap.docs[0].data() };
+                        setUserContract(contractData);
+
+                        // Si el contrato tiene documentación embebida, usarla
+                        if (contractData.documentation) {
+                            setDocumentation(contractData.documentation);
+                        }
                     }
+
+                    // Si hay documentación en la colección separada, usarla
+                    if (!docsSnap.empty) {
+                        setDocumentation({ id: docsSnap.docs[0].id, ...docsSnap.docs[0].data() } as any);
+                    }
+
                     setPendingPayments(paymentsSnap.size);
                 }
             } catch (error) {
@@ -310,6 +328,94 @@ const Dashboard: React.FC<DashboardProps> = ({ firebase, history }) => {
                     </div>
                 </div>
             </div>
+
+            {/* Estado de Documentacion - Solo mostrar si el contrato está firmado */}
+            {userContract?.status === 'signed' && (
+                <div className="row" style={{ marginTop: '20px' }}>
+                    <div className="col-md-12">
+                        <div className="panel panel-default">
+                            <div className="panel-heading" style={{
+                                backgroundColor: documentation?.status === 'complete' ? '#27ae60' :
+                                               documentation?.status === 'partial' ? '#f39c12' : '#e74c3c',
+                                color: 'white'
+                            }}>
+                                <h4><i className="fa fa-folder-open"></i> Mi Documentacion</h4>
+                            </div>
+                            <div className="panel-body">
+                                {!documentation || documentation.status === 'pending' ? (
+                                    <div className="alert alert-warning">
+                                        <h4><i className="fa fa-exclamation-triangle"></i> Documentacion Pendiente</h4>
+                                        <p>Para completar tu expediente, necesitas subir los siguientes documentos:</p>
+                                        <ul style={{ marginTop: '15px' }}>
+                                            {DOCUMENT_CHECKLIST.map((doc) => (
+                                                <li key={doc.type}><strong>{doc.label}</strong> - {doc.description}</li>
+                                            ))}
+                                            <li><strong>2 Contactos de Emergencia</strong> - Nombre, teléfono y relación</li>
+                                        </ul>
+                                        <Link to={`/contract/${userContract.id}`} className="btn btn-danger btn-lg" style={{ marginTop: '15px' }}>
+                                            <i className="fa fa-upload"></i> Subir Documentos Ahora
+                                        </Link>
+                                    </div>
+                                ) : documentation.status === 'partial' ? (
+                                    <>
+                                        <div className="alert alert-warning">
+                                            <h4><i className="fa fa-clock-o"></i> Documentacion Parcial</h4>
+                                            <p>Has subido algunos documentos, pero aun faltan:</p>
+                                        </div>
+                                        <div className="row">
+                                            {DOCUMENT_CHECKLIST.map((doc) => {
+                                                const uploaded = documentation.documents?.some(d => d.type === doc.type);
+                                                return (
+                                                    <div key={doc.type} className="col-md-6" style={{ marginBottom: '10px' }}>
+                                                        <div style={{ padding: '10px', backgroundColor: uploaded ? '#dff0d8' : '#fcf8e3', borderRadius: '4px' }}>
+                                                            {uploaded ? (
+                                                                <><i className="fa fa-check-circle text-success"></i> <strong>{doc.label}</strong></>
+                                                            ) : (
+                                                                <><i className="fa fa-times-circle text-warning"></i> <strong>{doc.label}</strong> - Pendiente</>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                            <div className="col-md-6" style={{ marginBottom: '10px' }}>
+                                                <div style={{ padding: '10px', backgroundColor: documentation.emergencyContacts?.length >= 2 ? '#dff0d8' : '#fcf8e3', borderRadius: '4px' }}>
+                                                    {documentation.emergencyContacts?.length >= 2 ? (
+                                                        <><i className="fa fa-check-circle text-success"></i> <strong>Contactos de Emergencia</strong></>
+                                                    ) : (
+                                                        <><i className="fa fa-times-circle text-warning"></i> <strong>Contactos de Emergencia</strong> - Faltan {2 - (documentation.emergencyContacts?.length || 0)}</>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <Link to={`/contract/${userContract.id}`} className="btn btn-warning btn-lg" style={{ marginTop: '15px' }}>
+                                            <i className="fa fa-upload"></i> Completar Documentacion
+                                        </Link>
+                                    </>
+                                ) : (
+                                    <div className="alert alert-success">
+                                        <h4><i className="fa fa-check-circle"></i> Documentacion Completa</h4>
+                                        <p>Has completado tu expediente correctamente. Todos los documentos han sido recibidos.</p>
+                                        <div className="row" style={{ marginTop: '15px' }}>
+                                            {DOCUMENT_CHECKLIST.map((doc) => (
+                                                <div key={doc.type} className="col-md-6" style={{ marginBottom: '10px' }}>
+                                                    <div style={{ padding: '10px', backgroundColor: '#dff0d8', borderRadius: '4px' }}>
+                                                        <i className="fa fa-check-circle text-success"></i> <strong>{doc.label}</strong>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            <div className="col-md-6" style={{ marginBottom: '10px' }}>
+                                                <div style={{ padding: '10px', backgroundColor: '#dff0d8', borderRadius: '4px' }}>
+                                                    <i className="fa fa-check-circle text-success"></i> <strong>Contactos de Emergencia ({documentation.emergencyContacts?.length})</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Acciones Rapidas para Inquilino */}
             <div className="row" style={{ marginTop: '20px' }}>

@@ -11,7 +11,6 @@ import HomePage from '../Home';
 import SignIn from '../SignIn';
 import SignUp from '../SignUp';
 import PasswordForget from '../PasswordForget';
-import MapComponent from '../Map';
 
 import Account from '../Account';
 import Tenant from '../Tenant';
@@ -64,7 +63,6 @@ const App: React.FC = () => {
 				<Route path={ROUTES.SIGN_IN} component={SignIn} />
 				<Route path={ROUTES.SIGN_UP} component={SignUp} />
 				<Route path={ROUTES.PASSWORD_FORGET} component={PasswordForget} />
-				<Route path={ROUTES.MAP} component={MapComponent} />
 
 				{/* Rutas protegidas para usuarios autenticados */}
 				<Route path={ROUTES.DASHBOARD} component={DashboardAuth} />

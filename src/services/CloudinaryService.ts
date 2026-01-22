@@ -22,6 +22,52 @@ class CloudinaryService {
     }
 
     /**
+     * Get folder path for tenant documents
+     * @param tenantId - Tenant's unique ID
+     * @param documentType - Type of document
+     * @returns Folder path string
+     */
+    getTenantDocumentFolder(tenantId: string, documentType?: string): string {
+        const basePath = `tenants/${tenantId}`;
+        if (documentType) {
+            return `${basePath}/documents/${documentType}`;
+        }
+        return `${basePath}/documents`;
+    }
+
+    /**
+     * Get folder path for tenant payment receipts
+     * @param tenantId - Tenant's unique ID
+     * @returns Folder path string
+     */
+    getTenantPaymentsFolder(tenantId: string): string {
+        return `tenants/${tenantId}/payments`;
+    }
+
+    /**
+     * Upload a tenant document to their organized folder
+     * @param file - File to upload
+     * @param tenantId - Tenant's unique ID
+     * @param documentType - Type of document (tenant_id, tenant_address, guarantor_id, guarantor_address)
+     * @returns Promise with upload response
+     */
+    async uploadTenantDocument(file: File, tenantId: string, documentType: string): Promise<UploadResponse> {
+        const folder = this.getTenantDocumentFolder(tenantId, documentType);
+        return this.uploadFile(file, folder);
+    }
+
+    /**
+     * Upload a payment receipt to tenant's payments folder
+     * @param file - Receipt file to upload
+     * @param tenantId - Tenant's unique ID
+     * @returns Promise with upload response
+     */
+    async uploadPaymentReceipt(file: File, tenantId: string): Promise<UploadResponse> {
+        const folder = this.getTenantPaymentsFolder(tenantId);
+        return this.uploadFile(file, folder);
+    }
+
+    /**
      * Upload a file to Cloudinary
      * @param file - File to upload
      * @param folder - Optional folder name in Cloudinary
