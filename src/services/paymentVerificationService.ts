@@ -1,8 +1,9 @@
 /**
- * Servicio para verificar comprobantes de pago usando OpenAI Vision API
+ * Servicio para verificar comprobantes de pago usando Firebase Functions
  *
- * NOTA: Para mayor seguridad, considera usar un proxy/backend para las llamadas a OpenAI
- * Para usar este servicio, configura VITE_OPENAI_API_KEY en tu archivo .env
+ * SEGURIDAD: La API key de OpenAI NUNCA debe estar en el frontend.
+ * Las verificaciones se realizan a través de Firebase Functions que tienen
+ * acceso seguro a la API key via Secret Manager.
  */
 
 export interface PaymentVerificationResult {
@@ -21,126 +22,65 @@ export interface VerificationRequest {
 }
 
 class PaymentVerificationService {
-    private apiKey: string | undefined;
-    private apiUrl = 'https://api.openai.com/v1/chat/completions';
+    private functionsUrl: string;
 
     constructor() {
-        // Obtener API key desde variables de entorno de Vite
-        this.apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+        // URL de Firebase Functions
+        const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || '';
+        this.functionsUrl = `https://us-central1-${projectId}.cloudfunctions.net`;
     }
 
     /**
      * Verifica si el servicio está configurado correctamente
      */
     isConfigured(): boolean {
-        return !!this.apiKey;
+        return !!import.meta.env.VITE_FIREBASE_PROJECT_ID;
     }
 
     /**
-     * Analiza un comprobante de pago y extrae la información
+     * Analiza un comprobante de pago y extrae la información via Firebase Functions
      */
     async verifyReceipt(request: VerificationRequest): Promise<PaymentVerificationResult> {
-        if (!this.apiKey) {
+        if (!this.isConfigured()) {
             return {
                 success: false,
                 confidence: 0,
-                error: 'API de OpenAI no configurada. Contacta al administrador.'
+                error: 'Firebase no está configurado. Contacta al administrador.'
             };
         }
 
         try {
-            const response = await fetch(this.apiUrl, {
+            const response = await fetch(`${this.functionsUrl}/verifyPaymentReceipt`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.apiKey}`
                 },
                 body: JSON.stringify({
-                    model: 'gpt-4o',
-                    messages: [
-                        {
-                            role: 'system',
-                            content: `Eres un asistente especializado en analizar comprobantes de pago bancarios mexicanos.
-                            Extrae la siguiente información del comprobante:
-                            - Monto total de la transferencia (en pesos mexicanos)
-                            - Fecha de la transacción
-                            - Número de referencia o folio
-                            - Nombre del banco emisor
-
-                            Responde SOLO en formato JSON con esta estructura exacta:
-                            {
-                                "amount": número (sin símbolos, solo el valor numérico),
-                                "date": "YYYY-MM-DD",
-                                "reference": "número de referencia",
-                                "bank": "nombre del banco",
-                                "confidence": número del 0 al 100 indicando qué tan seguro estás de la extracción
-                            }
-
-                            Si no puedes identificar algún campo, usa null.
-                            El monto esperado es aproximadamente $${request.expectedAmount} MXN.`
-                        },
-                        {
-                            role: 'user',
-                            content: [
-                                {
-                                    type: 'text',
-                                    text: 'Analiza este comprobante de pago y extrae la información solicitada.'
-                                },
-                                {
-                                    type: 'image_url',
-                                    image_url: {
-                                        url: request.receiptUrl,
-                                        detail: 'high'
-                                    }
-                                }
-                            ]
-                        }
-                    ],
-                    max_tokens: 500,
-                    temperature: 0.1
+                    receiptUrl: request.receiptUrl,
+                    expectedAmount: request.expectedAmount
                 })
             });
 
             if (!response.ok) {
                 const errorData = await response.json();
-                console.error('Error de OpenAI:', errorData);
+                console.error('Error de verificación:', errorData);
                 return {
                     success: false,
                     confidence: 0,
-                    error: `Error de API: ${errorData.error?.message || 'Error desconocido'}`
+                    error: errorData.error || 'Error al verificar el comprobante'
                 };
             }
 
             const data = await response.json();
-            const content = data.choices?.[0]?.message?.content;
-
-            if (!content) {
-                return {
-                    success: false,
-                    confidence: 0,
-                    error: 'No se recibió respuesta de la IA'
-                };
-            }
-
-            // Parsear respuesta JSON
-            const jsonMatch = content.match(/\{[\s\S]*\}/);
-            if (!jsonMatch) {
-                return {
-                    success: false,
-                    confidence: 0,
-                    error: 'Respuesta no válida de la IA'
-                };
-            }
-
-            const parsed = JSON.parse(jsonMatch[0]);
 
             return {
-                success: parsed.amount !== null,
-                amount: parsed.amount ? parseFloat(parsed.amount) : undefined,
-                date: parsed.date || undefined,
-                reference: parsed.reference || undefined,
-                bank: parsed.bank || undefined,
-                confidence: parsed.confidence || 0
+                success: data.success,
+                amount: data.amount,
+                date: data.date,
+                reference: data.reference,
+                bank: data.bank,
+                confidence: data.confidence || 0,
+                error: data.error
             };
         } catch (error: any) {
             console.error('Error al verificar comprobante:', error);

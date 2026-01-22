@@ -71,11 +71,6 @@ const NavigationNonAuth = () => (
 								Regístrate
 							</Link>
 						</li>
-						<li>
-							<Link className='btn-link' to={ROUTES.MAP}>
-								Mapa
-							</Link>
-						</li>
 						<form className='navbar-form navbar-right'>
 							<div className='form-group'>
 								<label className='sr-only' htmlFor='exampleInputAmount'>

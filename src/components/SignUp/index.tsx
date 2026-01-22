@@ -1,6 +1,6 @@
 import React from 'react';
-import { withRouter } from 'react-router-dom';
-import { compose } from 'recompose';
+import { withRouter, RouteComponentProps } from 'react-router-dom';
+import { doc, setDoc } from 'firebase/firestore';
 
 import { withFirebase } from '../Firebase';
 import * as ROUTES from '../../constants/routes';
@@ -19,13 +19,17 @@ const INITIAL_STATE = {
 	passwordTwo: '',
 	amount: 0,
 	datepayment: '01/01/2020',
-	payments: [],
+	payments: [] as any[],
 	isAdmin: false,
-	error: null,
+	error: null as any,
 };
 
-class SignUpFormBase extends React.Component<any, any> {
-	constructor(props: any) {
+interface Props extends RouteComponentProps {
+	firebase: any;
+}
+
+class SignUpFormBase extends React.Component<Props, typeof INITIAL_STATE> {
+	constructor(props: Props) {
 		super(props);
 		this.state = { ...INITIAL_STATE };
 	}
@@ -39,10 +43,10 @@ class SignUpFormBase extends React.Component<any, any> {
 			.then((authUser: any) => {
 				this.setState({ ...INITIAL_STATE });
 				this.props.history.push(ROUTES.DASHBOARD);
-				console.log("authUser ", authUser);
 
-				// Create a user in your Firebase realtime database
-				return this.props.firebase.users().doc(authUser.user.uid).set({
+				// Create a user in Firestore
+				const userRef = doc(this.props.firebase.db, 'users', authUser.user.uid);
+				return setDoc(userRef, {
 					fullname,
 					email,
 					amount,
@@ -58,7 +62,7 @@ class SignUpFormBase extends React.Component<any, any> {
 	};
 
 	onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-		this.setState({ [event.target.name]: event.target.value });
+		this.setState({ [event.target.name]: event.target.value } as any);
 	};
 
 	render() {
@@ -85,7 +89,7 @@ class SignUpFormBase extends React.Component<any, any> {
 	}
 }
 
-const SignUpForm = compose(withRouter, withFirebase)(SignUpFormBase);
+const SignUpForm = withRouter(withFirebase(SignUpFormBase) as any);
 
 export default SignUpPage;
 export { SignUpForm };

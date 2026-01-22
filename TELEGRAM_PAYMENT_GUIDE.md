@@ -24,7 +24,7 @@ Realiza tu pago de renta de forma normal:
 ### Paso 3: Envía tu comprobante
 
 1. Abre Telegram
-2. Busca el bot de Torre EL en tus chats
+2. Busca **@torreel_pagos_bot** en tus chats
 3. **Toma una foto** del comprobante (o abre tu galería si ya la tienes)
 4. **Envía la foto** al bot
 

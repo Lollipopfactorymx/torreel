@@ -5,7 +5,6 @@ declare module "*.svg";
 declare module "*.gif";
 declare module "recompose";
 declare module "react-awesome-slider";
-declare module "google-map-react";
 
 // For components that use "component" prop in Route (v5)
 declare namespace React {

@@ -20,7 +20,7 @@ const TelegramConnect: React.FC<TelegramConnectProps> = ({ firebase, userId, cur
 
     // Check if user has been connected (poll every 5 seconds when waiting)
     useEffect(() => {
-        let interval: NodeJS.Timeout;
+        let interval: number;
 
         if (!chatId && checking) {
             interval = setInterval(async () => {
@@ -56,7 +56,7 @@ const TelegramConnect: React.FC<TelegramConnectProps> = ({ firebase, userId, cur
             });
 
             // Open Telegram with deep link
-            const botUsername = 'TorreELBot'; // Puedes cambiar esto al username real de tu bot
+            const botUsername = 'torreel_pagos_bot';
             const telegramUrl = `https://t.me/${botUsername}?start=${connectionCode}`;
 
             window.open(telegramUrl, '_blank');

@@ -1,7 +1,7 @@
 /**
  * Servicio para enviar recordatorios de pago por Telegram y Email
  *
- * Para Telegram: Configura VITE_TELEGRAM_BOT_TOKEN en .env
+ * Para Telegram: Los mensajes se envían via Firebase Functions (token seguro en Secret Manager)
  * Para Email: Ya está configurado con EmailJS (PALX)
  */
 

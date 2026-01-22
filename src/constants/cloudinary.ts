@@ -1,15 +1,13 @@
 export interface CloudinaryConfig {
     cloudName: string;
-    apiKey: string;
-    apiSecret: string;
     uploadPreset: string;
 }
 
+// NOTA: apiKey y apiSecret NO deben estar en el frontend
+// Las operaciones firmadas deben hacerse desde Firebase Functions
 const cloudinaryConfig: CloudinaryConfig = {
-    cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "lollipopfactory",
-    apiKey: import.meta.env.VITE_CLOUDINARY_API_KEY || "119869186325156",
-    apiSecret: import.meta.env.VITE_CLOUDINARY_API_SECRET || "Npha0O1Ek88y9VwcgmxEHcUao4w",
-    uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "torre-el-uploads"
+    cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "",
+    uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || ""
 };
 
 export default cloudinaryConfig;

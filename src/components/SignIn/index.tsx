@@ -1,7 +1,6 @@
 import React from 'react';
-import { withRouter } from 'react-router-dom';
+import { withRouter, RouteComponentProps } from 'react-router-dom';
 import { withFirebase } from '../Firebase';
-import { compose } from 'recompose';
 import { Link } from 'react-router-dom';
 import * as ROUTES from '../../constants/routes';
 import userDefaultImg from '../../assets/images/user-default.jpg';
@@ -12,11 +11,15 @@ const SignIn = () => <SignInForm />;
 const INITIAL_STATE = {
 	email: '',
 	password: '',
-	error: null,
+	error: null as any,
 };
 
-class SignInFormBase extends React.Component<any, any> {
-	constructor(props: any) {
+interface Props extends RouteComponentProps {
+	firebase: any;
+}
+
+class SignInFormBase extends React.Component<Props, typeof INITIAL_STATE> {
+	constructor(props: Props) {
 		super(props);
 		this.state = { ...INITIAL_STATE };
 	}
@@ -36,7 +39,7 @@ class SignInFormBase extends React.Component<any, any> {
 	};
 
 	onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-		this.setState({ [event.target.name]: event.target.value });
+		this.setState({ [event.target.name]: event.target.value } as any);
 	};
 
 	render() {
@@ -75,6 +78,6 @@ class SignInFormBase extends React.Component<any, any> {
 	}
 }
 
-const SignInForm = compose(withRouter, withFirebase)(SignInFormBase);
+const SignInForm = withRouter(withFirebase(SignInFormBase) as any);
 export default SignIn;
 export { SignInForm };

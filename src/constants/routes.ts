@@ -11,7 +11,6 @@ export const TENANT = '/tenants';
 export const ADD_TENANT = '/add_tenant';
 export const EDIT_TENANT = '/edit_tenant/:id';
 export const PASSWORD_FORGET = '/pw-forget';
-export const MAP = '/map';
 export const CONTRACTS = '/contracts';
 export const MY_CONTRACT = '/my-contract';
 export const CONTRACT_VIEW = '/contract/:id';

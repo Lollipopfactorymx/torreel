@@ -1,12 +1,9 @@
 /**
- * Servicio para enviar mensajes a través de Telegram Bot API
+ * Servicio para enviar mensajes a través de Firebase Functions
  *
- * Configuración requerida:
- * 1. Crear bot con @BotFather en Telegram
- * 2. Obtener el token del bot
- * 3. Agregar VITE_TELEGRAM_BOT_TOKEN al .env
- * 4. Los usuarios deben iniciar conversación con el bot y enviar /start
- * 5. Guardar su chat_id en su perfil
+ * SEGURIDAD: El token de Telegram NUNCA debe estar en el frontend.
+ * Los mensajes se envían a través de Firebase Functions que tienen
+ * acceso seguro al token via Secret Manager.
  */
 
 export interface TelegramMessage {
@@ -22,30 +19,30 @@ export interface TelegramResponse {
 }
 
 class TelegramService {
-    private botToken: string;
-    private apiUrl: string;
+    private functionsUrl: string;
 
     constructor() {
-        this.botToken = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '';
-        this.apiUrl = `https://api.telegram.org/bot${this.botToken}`;
+        // URL de Firebase Functions (configurar en .env)
+        const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || '';
+        this.functionsUrl = `https://us-central1-${projectId}.cloudfunctions.net`;
     }
 
     /**
      * Verifica si el servicio está configurado correctamente
      */
     isConfigured(): boolean {
-        return !!this.botToken && this.botToken.length > 0;
+        return !!import.meta.env.VITE_FIREBASE_PROJECT_ID;
     }
 
     /**
-     * Envía un mensaje de texto a un chat de Telegram
+     * Envía un mensaje de texto a un chat de Telegram via Firebase Functions
      */
     async sendMessage(message: TelegramMessage): Promise<TelegramResponse> {
         if (!this.isConfigured()) {
-            console.error('Telegram Bot no está configurado. Agrega VITE_TELEGRAM_BOT_TOKEN al .env');
+            console.error('Firebase no está configurado');
             return {
                 sent: false,
-                error: 'Telegram Bot no está configurado'
+                error: 'Firebase no está configurado'
             };
         }
 
@@ -57,27 +54,27 @@ class TelegramService {
         }
 
         try {
-            const response = await fetch(`${this.apiUrl}/sendMessage`, {
+            const response = await fetch(`${this.functionsUrl}/sendTelegramMessageFn`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    chat_id: message.chatId,
+                    chatId: message.chatId,
                     text: message.text,
-                    parse_mode: message.parseMode || 'Markdown'
+                    parseMode: message.parseMode || 'Markdown'
                 })
             });
 
             const data = await response.json();
 
-            if (!response.ok || !data.ok) {
-                throw new Error(data.description || 'Error al enviar mensaje');
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Error al enviar mensaje');
             }
 
             return {
                 sent: true,
-                messageId: data.result.message_id
+                messageId: data.messageId
             };
         } catch (error: any) {
             console.error('Error enviando mensaje de Telegram:', error);
@@ -131,57 +128,6 @@ Por favor, realiza tu pago a tiempo y sube el comprobante en tu portal.
             text: message,
             parseMode: 'Markdown'
         });
-    }
-
-    /**
-     * Obtiene información del bot (útil para verificar configuración)
-     */
-    async getBotInfo(): Promise<any> {
-        if (!this.isConfigured()) {
-            throw new Error('Telegram Bot no está configurado');
-        }
-
-        try {
-            const response = await fetch(`${this.apiUrl}/getMe`);
-            const data = await response.json();
-
-            if (!response.ok || !data.ok) {
-                throw new Error(data.description || 'Error al obtener info del bot');
-            }
-
-            return data.result;
-        } catch (error) {
-            console.error('Error obteniendo info del bot:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Obtiene el chat_id de un usuario (útil para configuración inicial)
-     * El usuario debe haber enviado un mensaje al bot primero
-     */
-    async getUpdates(offset?: number): Promise<any> {
-        if (!this.isConfigured()) {
-            throw new Error('Telegram Bot no está configurado');
-        }
-
-        try {
-            const url = offset
-                ? `${this.apiUrl}/getUpdates?offset=${offset}`
-                : `${this.apiUrl}/getUpdates`;
-
-            const response = await fetch(url);
-            const data = await response.json();
-
-            if (!response.ok || !data.ok) {
-                throw new Error(data.description || 'Error al obtener actualizaciones');
-            }
-
-            return data.result;
-        } catch (error) {
-            console.error('Error obteniendo actualizaciones:', error);
-            throw error;
-        }
     }
 
     /**

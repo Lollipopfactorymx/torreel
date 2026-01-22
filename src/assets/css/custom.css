@@ -900,12 +900,107 @@ input:focus, textarea:focus {
 	#chat .panel-body {
 		padding-top: 5px;
 	}
+	
+	/* Mobile header fixes */
+	.header {
+		min-height: 400px !important;
+		height: auto !important;
+	}
+	
+	.header h1 {
+		font-size: 24px !important;
+	}
+	
+	.header img {
+		height: 150px !important;
+		width: auto !important;
+	}
+	
+	h1 {
+		font-size: 28px !important;
+	}
+	
+	h2 {
+		font-size: 22px !important;
+	}
+	
+	h3 {
+		font-size: 18px !important;
+	}
+	
+	/* Gallery mobile fix */
+	.galleria {
+		height: 300px !important;
+	}
+	
+	/* Services section mobile */
+	#servicios .thumbnail img {
+		width: 80px !important;
+	}
+	
+	/* Contact section mobile */
+	#contacto .panel-body {
+		padding: 15px !important;
+	}
+	
+	/* Quienes somos mobile */
+	#quienes-somos .panel-body {
+		padding: 15px !important;
+	}
+	
+	#quienes-somos ul {
+		padding-left: 15px !important;
+	}
+	
+	/* Button fixes for mobile */
+	.btn-lg {
+		font-size: 14px !important;
+		padding: 10px 15px !important;
+	}
+}
+
+/* Additional mobile breakpoint for very small screens */
+@media (max-width: 360px) {
+	.header {
+		min-height: 350px !important;
+	}
+	
+	.header h1 {
+		font-size: 20px !important;
+	}
+	
+	.header img {
+		height: 120px !important;
+	}
+	
+	h1 {
+		font-size: 24px !important;
+	}
+	
+	h2 {
+		font-size: 20px !important;
+	}
+	
+	.galleria {
+		height: 250px !important;
+	}
+	
+	#servicios .thumbnail img {
+		width: 60px !important;
+	}
 }
 
 .galleria {
 	width: auto;
 	height: 800px;
 	background: #000;
+}
+
+/* Responsive galleria */
+@media (max-width: 767px) {
+	.galleria {
+		height: 400px !important;
+	}
 }
 
 .btn-link:hover, .btn-link:focus {

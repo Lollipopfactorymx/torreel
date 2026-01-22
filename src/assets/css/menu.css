@@ -377,4 +377,59 @@ footer .footer-links {
 
 /* Extra Small Devices, Phones */
 
-@media only screen and (max-width: 480px) {}
+@media only screen and (max-width: 480px) {
+	#main-menu .navbar-header .navbar-brand img {
+		width: 60%;
+		margin-top: -20px;
+	}
+	
+	#main-menu .navbar-header {
+		margin-top: 15px;
+	}
+	
+	#main-menu.navbar-default .navbar-nav {
+		padding: 8px;
+		margin-right: 5px;
+	}
+	
+	#main-menu.navbar-default .navbar-nav li a {
+		font-size: 14px;
+		padding: 8px 10px;
+	}
+	
+	.navbar-form {
+		width: 100%;
+		padding: 5px;
+	}
+	
+	.navbar-form .form-control {
+		font-size: 14px !important;
+	}
+	
+	/* Mobile menu toggle button */
+	.navbar-toggle {
+		margin-top: 10px;
+		margin-right: 10px;
+	}
+	
+	.navbar-toggle .icon-bar {
+		width: 22px;
+	}
+}
+
+/* Very small phones */
+@media only screen and (max-width: 360px) {
+	#main-menu .navbar-header .navbar-brand img {
+		width: 50%;
+		margin-top: -15px;
+	}
+	
+	#main-menu .navbar-header {
+		margin-top: 10px;
+	}
+	
+	#main-menu.navbar-default .navbar-nav li a {
+		font-size: 13px;
+		padding: 6px 8px;
+	}
+}

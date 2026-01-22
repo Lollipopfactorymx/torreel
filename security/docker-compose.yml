@@ -1,0 +1,94 @@
+version: '3.8'
+
+# Herramientas de escaneo de seguridad para el proyecto
+# Uso: docker-compose -f security/docker-compose.yml run <servicio>
+
+services:
+  # Trivy - Scanner de vulnerabilidades completo
+  # Escanea: dependencias, secretos, configuraciones, IaC
+  trivy-deps:
+    image: aquasec/trivy:latest
+    volumes:
+      - ../:/project:ro
+    working_dir: /project
+    command: fs --scanners vuln,secret,misconfig .
+    profiles: ["vuln", "all"]
+
+  # Trivy - Solo escaneo de secretos
+  trivy-secrets:
+    image: aquasec/trivy:latest
+    volumes:
+      - ../:/project:ro
+    working_dir: /project
+    command: fs --scanners secret .
+    profiles: ["secrets", "all"]
+
+  # Gitleaks - Detector de secretos especializado
+  gitleaks:
+    image: zricethezav/gitleaks:latest
+    volumes:
+      - ../:/project:ro
+    working_dir: /project
+    command: detect --source=/project --verbose
+    profiles: ["secrets", "all"]
+
+  # Semgrep - Análisis estático de seguridad (SAST)
+  semgrep:
+    image: semgrep/semgrep:latest
+    volumes:
+      - ../:/project:ro
+    working_dir: /project
+    command: scan --config=auto --config=p/security-audit --config=p/secrets
+    profiles: ["sast", "all"]
+
+  # npm audit - Vulnerabilidades en dependencias Node.js
+  npm-audit:
+    image: node:22-alpine
+    volumes:
+      - ../:/project:ro
+    working_dir: /project
+    entrypoint: /bin/sh
+    command: -c "npm audit && cd functions && npm audit"
+    profiles: ["deps", "all"]
+
+  # OWASP Dependency-Check
+  dependency-check:
+    image: owasp/dependency-check:latest
+    volumes:
+      - ../:/project:ro
+      - ./dependency-check-data:/usr/share/dependency-check/data
+    working_dir: /project
+    command: --scan /project --format HTML --out /project/security/reports
+    profiles: ["deps"]
+
+  # ESLint con plugins de seguridad
+  eslint-security:
+    image: node:22-alpine
+    volumes:
+      - ../:/project
+    working_dir: /project
+    entrypoint: /bin/sh
+    command: >
+      -c "npm install -g eslint eslint-plugin-security &&
+      eslint --plugin security
+      --rule 'security/detect-object-injection:warn'
+      --rule 'security/detect-non-literal-fs-filename:warn'
+      --rule 'security/detect-eval-with-expression:error'
+      --ext .ts,.tsx,.js src/"
+    profiles: ["sast"]
+
+# Instrucciones de uso:
+#
+# Escaneo completo:
+#   docker-compose -f security/docker-compose.yml --profile all up
+#
+# Solo vulnerabilidades de dependencias:
+#   docker-compose -f security/docker-compose.yml run trivy-deps
+#   docker-compose -f security/docker-compose.yml run npm-audit
+#
+# Solo secretos expuestos:
+#   docker-compose -f security/docker-compose.yml run gitleaks
+#   docker-compose -f security/docker-compose.yml run trivy-secrets
+#
+# Análisis estático (SAST):
+#   docker-compose -f security/docker-compose.yml run semgrep
