@@ -1,5 +1,4 @@
 import React from 'react';
-import { compose } from 'recompose';
 
 import HeaderTE from '../HeaderTE';
 import { withFirebase } from '../Firebase';
