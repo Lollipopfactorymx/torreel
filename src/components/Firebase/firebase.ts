@@ -33,15 +33,78 @@ import {
 
 import config from '../../constants/config';
 
+// Wrapper compat para soportar el patrón firebase.db.collection() de Firebase v8
+function createDocWrapper(db: Firestore, collectionPath: string, docId: string) {
+	const docRef = doc(db, collectionPath, docId);
+	return Object.assign(docRef, {
+		get: () => getDoc(docRef),
+		set: (data: any, options?: any) => setDoc(docRef, data, options || {}),
+		update: (data: any) => updateDoc(docRef, data),
+		delete: () => deleteDoc(docRef),
+	});
+}
+
+function createCollectionWrapper(db: Firestore, path: string) {
+	const colRef = collection(db, path);
+	return {
+		get: () => getDocs(colRef),
+		doc: (docId?: string) => {
+			if (!docId) {
+				// Generar un nuevo doc ID (para .doc().id)
+				const newDocRef = doc(colRef);
+				return Object.assign(newDocRef, {
+					get: () => getDoc(newDocRef),
+					set: (data: any, options?: any) => setDoc(newDocRef, data, options || {}),
+					update: (data: any) => updateDoc(newDocRef, data),
+					delete: () => deleteDoc(newDocRef),
+				});
+			}
+			return createDocWrapper(db, path, docId);
+		},
+		add: (data: any) => addDoc(colRef, data),
+		where: (...args: any[]) => {
+			let q = query(colRef, where(args[0], args[1], args[2]));
+			return {
+				get: () => getDocs(q),
+				where: (...args2: any[]) => {
+					q = query(colRef, where(args[0], args[1], args[2]), where(args2[0], args2[1], args2[2]));
+					return {
+						get: () => getDocs(q),
+						orderBy: (field: string, direction?: any) => ({
+							get: () => getDocs(query(colRef, where(args[0], args[1], args[2]), where(args2[0], args2[1], args2[2]), orderBy(field, direction))),
+						}),
+					};
+				},
+				orderBy: (field: string, direction?: any) => ({
+					get: () => getDocs(query(colRef, where(args[0], args[1], args[2]), orderBy(field, direction))),
+				}),
+				limit: (n: number) => ({
+					get: () => getDocs(query(colRef, where(args[0], args[1], args[2]), limit(n))),
+				}),
+			};
+		},
+		orderBy: (field: string, direction?: any) => ({
+			get: () => getDocs(query(colRef, orderBy(field, direction))),
+		}),
+		onSnapshot: (callback: any) => onSnapshot(colRef, callback),
+		ref: colRef,
+	};
+}
+
 class Firebase {
 	app: FirebaseApp;
 	auth: Auth;
-	db: Firestore;
+	db: any; // Firestore con wrapper compat
 
 	constructor() {
 		this.app = initializeApp(config);
 		this.auth = getAuth(this.app);
-		this.db = getFirestore(this.app);
+		const firestore = getFirestore(this.app);
+
+		// Crear proxy que soporta tanto API modular como compat
+		this.db = Object.assign(firestore, {
+			collection: (path: string) => createCollectionWrapper(firestore, path),
+		});
 	}
 
 	// *** Auth API ***
@@ -92,7 +155,23 @@ class Firebase {
 		});
 
 	// *** User API ***
-	users = () => collection(this.db, 'users');
+	// Wrapper compat para soportar patrones de Firebase v8: .get(), .doc().get/set/update()
+	users = () => {
+		const colRef = collection(this.db, 'users');
+		const db = this.db;
+		return Object.assign(colRef, {
+			get: () => getDocs(colRef),
+			doc: (docId: string) => {
+				const docRef = doc(db, 'users', docId);
+				return Object.assign(docRef, {
+					get: () => getDoc(docRef),
+					set: (data: any, options?: any) => setDoc(docRef, data, options || {}),
+					update: (data: any) => updateDoc(docRef, data),
+					delete: () => deleteDoc(docRef),
+				});
+			},
+		});
+	};
 
 	// *** Firestore Helper Methods ***
 	collection = (path: string) => collection(this.db, path);

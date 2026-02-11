@@ -5,6 +5,7 @@ import HeaderTE from '../HeaderTE';
 import SideBarAdmin from '../Admin/SidebarAdmin';
 import { AuthUserContext } from '../Session';
 import { withFirebase } from '../Firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import * as ROUTES from '../../constants/routes';
 import * as ROLES from '../../constants/roles';
 import { TenantDocumentation, DOCUMENT_CHECKLIST } from '../../types';
@@ -45,10 +46,12 @@ const Dashboard: React.FC<DashboardProps> = ({ firebase, history }) => {
             try {
                 if (isAdmin) {
                     // Cargar estadísticas para admin
+                    const contractsRef = collection(firebase.db, 'contracts');
+                    const pendingPaymentsQuery = query(collection(firebase.db, 'payments'), where('status', '==', 'pending'));
                     const [tenantsSnap, contractsSnap, paymentsSnap] = await Promise.all([
                         firebase.users().get(),
-                        firebase.db.collection('contracts').get(),
-                        firebase.db.collection('payments').where('status', '==', 'pending').get()
+                        getDocs(contractsRef),
+                        getDocs(pendingPaymentsQuery)
                     ]);
 
                     const tenantCount = tenantsSnap.docs.filter((doc: any) => !doc.data().roles?.[ROLES.ADMIN]).length;
@@ -63,20 +66,17 @@ const Dashboard: React.FC<DashboardProps> = ({ firebase, history }) => {
                     });
                 } else {
                     // Cargar datos para inquilino
+                    const contractsQuery = query(collection(firebase.db, 'contracts'), where('tenantId', '==', authUser.uid));
+                    const paymentsQuery = query(collection(firebase.db, 'payments'), where('tenantId', '==', authUser.uid), where('status', '==', 'pending'));
+                    const docsQuery = query(collection(firebase.db, 'tenantDocumentation'), where('tenantId', '==', authUser.uid));
                     const [contractSnap, paymentsSnap, docsSnap] = await Promise.all([
-                        firebase.db.collection('contracts').where('tenantId', '==', authUser.uid).get(),
-                        firebase.db.collection('payments')
-                            .where('tenantId', '==', authUser.uid)
-                            .where('status', '==', 'pending')
-                            .get(),
-                        firebase.db.collection('tenantDocumentation')
-                            .where('tenantId', '==', authUser.uid)
-                            .limit(1)
-                            .get()
+                        getDocs(contractsQuery),
+                        getDocs(paymentsQuery),
+                        getDocs(docsQuery)
                     ]);
 
                     if (!contractSnap.empty) {
-                        const contractData = { id: contractSnap.docs[0].id, ...contractSnap.docs[0].data() };
+                        const contractData: any = { id: contractSnap.docs[0].id, ...contractSnap.docs[0].data() };
                         setUserContract(contractData);
 
                         // Si el contrato tiene documentación embebida, usarla
