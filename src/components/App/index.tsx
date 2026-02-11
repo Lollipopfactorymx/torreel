@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
 import Navigation from '../Navigation';
 
 import * as ROUTES from '../../constants/routes';
@@ -58,28 +58,30 @@ const App: React.FC = () => {
 			<Router>
 				<Navigation />
 
-				<Route exact path={ROUTES.LANDING} component={HomePage} />
-				<Route path={ROUTES.HOME} component={HomePage} />
-				<Route path={ROUTES.SIGN_IN} component={SignIn} />
-				<Route path={ROUTES.SIGN_UP} component={SignUp} />
-				<Route path={ROUTES.PASSWORD_FORGET} component={PasswordForget} />
+				<Switch>
+					<Route exact path={ROUTES.LANDING} component={HomePage} />
+					<Route exact path={ROUTES.HOME} component={HomePage} />
+					<Route exact path={ROUTES.SIGN_IN} component={SignIn} />
+					<Route exact path={ROUTES.SIGN_UP} component={SignUp} />
+					<Route exact path={ROUTES.PASSWORD_FORGET} component={PasswordForget} />
 
-				{/* Rutas protegidas para usuarios autenticados */}
-				<Route path={ROUTES.DASHBOARD} component={DashboardAuth} />
-				<Route path={ROUTES.ACCOUNT} component={AccountAuth} />
-				<Route path={ROUTES.MYPAYMENTS} component={MyPaymentsAuth} />
-				<Route exact path={ROUTES.MY_CONTRACT} component={TenantContractAuth} />
-				<Route path={ROUTES.CONTRACT_VIEW} component={ContractViewerAuth} />
+					{/* Rutas protegidas para usuarios autenticados */}
+					<Route exact path={ROUTES.DASHBOARD} component={DashboardAuth} />
+					<Route exact path={ROUTES.ACCOUNT} component={AccountAuth} />
+					<Route exact path={ROUTES.MYPAYMENTS} component={MyPaymentsAuth} />
+					<Route exact path={ROUTES.MY_CONTRACT} component={TenantContractAuth} />
+					<Route exact path={ROUTES.CONTRACT_VIEW} component={ContractViewerAuth} />
 
-				{/* Rutas protegidas solo para Admin */}
-				<Route path={ROUTES.TENANT} component={TenantAdmin} />
-				<Route path={ROUTES.ADD_TENANT} component={AddTenantAdmin} />
-				<Route path={ROUTES.EDIT_TENANT} component={EditTenantAdmin} />
-				<Route path={ROUTES.PAYMENT} component={PaymentAdmin} />
-				<Route path={ROUTES.DETAIL_PAYMENTS} component={DetailsPaymentAdmin} />
-				<Route exact path={ROUTES.CONTRACTS} component={ContractDashboard} />
+					{/* Rutas protegidas solo para Admin */}
+					<Route exact path={ROUTES.TENANT} component={TenantAdmin} />
+					<Route exact path={ROUTES.ADD_TENANT} component={AddTenantAdmin} />
+					<Route exact path={ROUTES.EDIT_TENANT} component={EditTenantAdmin} />
+					<Route exact path={ROUTES.DETAIL_PAYMENTS} component={DetailsPaymentAdmin} />
+					<Route exact path={ROUTES.PAYMENT} component={PaymentAdmin} />
+					<Route exact path={ROUTES.CONTRACTS} component={ContractDashboard} />
 
-				<Route path={ROUTES.UPLOAD_EXAMPLE} component={FileUploadExample} />
+					<Route exact path={ROUTES.UPLOAD_EXAMPLE} component={FileUploadExample} />
+				</Switch>
 
 			</Router>
 
