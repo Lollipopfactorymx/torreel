@@ -24,7 +24,7 @@
     "@types/react-signature-canvas": "^1.0.7",
     "@vitejs/plugin-react-swc": "^3.7.0",
     "typescript": "^5.0.4",
-    "vite": "^6.0.0"
+    "vite": "^6.4.2"
   },
   "scripts": {
     "dev": "vite",
